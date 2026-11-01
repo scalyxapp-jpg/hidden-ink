@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Hidden Ink — a message inside a picture</title>
+    <meta
+      name="description"
+      content="Write a message, hide it in a picture nobody would look at twice, and hand the picture to a vision model that cannot find it."
+    />
+    <meta property="og:title" content="Hidden Ink" />
+    <meta
+      property="og:description"
+      content="Steganography with Pollinations: a secret sealed into the pixels of an ordinary image."
+    />
+    <meta name="theme-color" content="#0b0b0d" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="masthead">
+      <div class="brand">
+        <span class="mark" aria-hidden="true"></span>
+        <h1>Hidden Ink</h1>
+      </div>
+      <p class="tagline">
+        A secret sealed into the pixels of an ordinary picture.
+      </p>
+      <div class="connect-slot">
+        <polli-connect
+          app-key="pk_PqmBNzGiLq1Hdv5t"
+          budget="5"
+          expiry="7"
+          hide-buy-pollen
+        ></polli-connect>
+        <p class="hint" id="key-state" aria-live="polite">
+          Sign in with Pollinations so your own Pollen pays for the pictures.
+        </p>
+      </div>
+    </header>
+
+    <main>
+      <section class="workbench" aria-labelledby="compose-title">
+        <div class="panel">
+          <h2 id="compose-title">Compose</h2>
+          <p class="lede">
+            The words never touch the visible image. They are written into the
+            lowest bit of every colour channel, where they cost nothing to look
+            at and nothing to carry.
+          </p>
+
+          <form id="compose-form">
+            <label for="secret">Your message</label>
+            <textarea
+              id="secret"
+              rows="4"
+              maxlength="1500"
+              placeholder="Meet me where the river turns north."
+              required
+            ></textarea>
+
+            <label for="passphrase">Passphrase <span class="muted">(optional — seals the message with AES-GCM)</span></label>
+            <input
+              id="passphrase"
+              type="password"
+              autocomplete="new-password"
+              placeholder="leave empty to keep it readable by anyone with the file"
+            />
+
+            <label for="idea">What should the picture show?</label>
+            <input
+              id="idea"
+              type="text"
+              maxlength="160"
+              placeholder="a paper boat on a quiet pond, oil painting"
+            />
+
+            <div class="row">
+              <div class="field">
+                <label for="model">Model</label>
+                <select id="model"></select>
+              </div>
+              <div class="field">
+                <label for="seed">Seed</label>
+                <input id="seed" type="number" min="0" max="999999" value="42" />
+              </div>
+            </div>
+
+            <button type="submit" class="primary" id="compose-button">
+              Paint and hide
+            </button>
+          </form>
+
+          <p class="status" id="compose-status" role="status" aria-live="polite"></p>
+        </div>
+
+        <div class="panel stage">
+          <div class="stage-frame">
+            <img id="preview" alt="" hidden />
+            <div class="empty" id="stage-empty">
+              <p>Your picture appears here.</p>
+              <p class="muted">
+                One subject. Ordinary light. Nothing a passer-by would stop for.
+              </p>
+            </div>
+          </div>
+
+          <div class="stage-meta" id="stage-meta" hidden>
+            <p class="riddle" id="riddle"></p>
+            <dl>
+              <div><dt>Payload</dt><dd id="meta-used">–</dd></div>
+              <div><dt>Sealed</dt><dd id="meta-sealed">–</dd></div>
+              <div><dt>Carrier</dt><dd id="meta-size">–</dd></div>
+            </dl>
+            <div class="actions">
+              <button type="button" id="download" class="primary">Download PNG</button>
+              <button type="button" id="reveal-own" class="ghost">Read it back</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="workbench" aria-labelledby="reveal-title">
+        <div class="panel">
+          <h2 id="reveal-title">Reveal</h2>
+          <p class="lede">
+            Drop the PNG you were given. Nothing leaves your device — the pixels
+            are read locally.
+          </p>
+
+          <div class="dropzone" id="dropzone" tabindex="0" role="button">
+            <input type="file" id="file" accept="image/png,image/*" hidden />
+            <span id="dropzone-label">Choose a PNG or drop it here</span>
+          </div>
+
+          <label for="reveal-passphrase">Passphrase</label>
+          <input
+            id="reveal-passphrase"
+            type="password"
+            autocomplete="off"
+            placeholder="only if the message was sealed"
+          />
+
+          <button type="button" class="primary" id="extract-button">Reveal message</button>
+          <p class="status" id="reveal-status" role="status" aria-live="polite"></p>
+
+          <output class="message" id="revealed" hidden></output>
+        </div>
+
+        <div class="panel">
+          <h2>Interrogate</h2>
+          <p class="lede">
+            Hand the same picture to a vision model and ask what is hidden. In
+            the paper that inspired this app, the model had to see the picture
+            before it could reason about it — and seeing it costs the bits.
+          </p>
+          <button type="button" class="ghost" id="ask-button" disabled>
+            Ask the model what it sees
+          </button>
+          <p class="status" id="ask-status" role="status" aria-live="polite"></p>
+          <blockquote class="answer" id="answer" hidden></blockquote>
+
+          <details class="bits">
+            <summary>Show the hidden channel</summary>
+            <p class="muted">
+              The lowest bit of every channel, painted black and white. To an eye
+              the original is unchanged; here the payload is a sheet of noise.
+            </p>
+            <img id="bits" alt="Low-bit channel of the picture" hidden />
+          </details>
+        </div>
+      </section>
+
+      <section class="notes">
+        <h2>Why it works</h2>
+        <ol>
+          <li>
+            <strong>Frame.</strong> Magic bytes, an optional AES-GCM block with a
+            PBKDF2-SHA256 key, a length and a CRC-32.
+          </li>
+          <li>
+            <strong>Soak.</strong> Each byte becomes eight bits, and each bit
+            replaces the low bit of one colour channel. A channel moves by one
+            step out of 256.
+          </li>
+          <li>
+            <strong>Carry.</strong> The picture survives screenshots, messaging
+            apps and PNG re-encodes. JPEG re-encoding, resizing or cropping
+            destroys the payload — the message is as fragile as the file.
+          </li>
+        </ol>
+        <p class="muted">
+          Vision models receive a re-encoded, downsampled copy of the image, so
+          the low bit never reaches them. That is the whole point of the paper:
+          hiding in plain sight is easy, seeing it is not.
+        </p>
+        <a
+          class="badge"
+          href="https://pollinations.ai/?ref=badge"
+          target="_blank"
+          rel="noopener"
+        >
+          <img
+            src="https://raw.githubusercontent.com/pollinations/pollinations/main/packages/ui/src/brand/badge-made-with.svg"
+            alt="Made with pollinations.ai"
+          />
+        </a>
+      </section>
+    </main>
+
+    <footer>
+      <p>
+        Pictures and words by <a href="https://pollinations.ai">Pollinations</a>.
+        Steganography by your browser. No servers, no logs, no account of ours.
+      </p>
+    </footer>
+
+    <script defer src="https://cdn.jsdelivr.net/npm/@pollinations/ui@0.1.0-alpha.20/dist/connect.js"></script>
+    <script type="module" src="src/app.js"></script>
+  </body>
+</html>
