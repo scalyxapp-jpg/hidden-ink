@@ -113,8 +113,8 @@ function showPicture(blob) {
 	ui.askStatus.textContent = "";
 }
 
-ui.connect?.addEventListener("change", async () => {
-	state.key = ui.connect.apiKey || null;
+async function applyKey(key) {
+	state.key = key || devKey || null;
 	if (!state.key) {
 		ui.keyState.textContent =
 			"Not connected. Sign in so your own Pollen pays for the pictures.";
@@ -127,7 +127,19 @@ ui.connect?.addEventListener("change", async () => {
 	} catch {
 		// Balance is a nicety; a failed call must not block composing.
 	}
+}
+
+ui.connect?.addEventListener("change", () => {
+	void applyKey(ui.connect.apiKey);
 });
+
+// The element restores a stored key while it mounts, which can happen before
+// this module is listening. Read the property directly as well.
+for (const delay of [0, 400, 1500]) {
+	setTimeout(() => {
+		if (ui.connect?.apiKey) void applyKey(ui.connect.apiKey);
+	}, delay);
+}
 
 ui.form.addEventListener("submit", async (event) => {
 	event.preventDefault();
