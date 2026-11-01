@@ -37,8 +37,9 @@ that started this build.
 41..    payload, written MSB first into the low bit of R, G, B
 ```
 
-A 1024 × 1024 carrier holds 393,175 bytes; the app caps messages at 1,500
-characters, which is 1,541 bytes sealed.
+A 1024 × 1024 carrier holds 393,175 bytes. The app caps messages at 1,500
+characters: 1,541 bytes open, 1,557 sealed with AES-GCM, more when the text uses
+multi-byte characters (UTF-8).
 
 The payload survives PNG re-encoding, screenshots and chat apps that keep the
 original bytes. It does **not** survive JPEG re-compression, resizing or
